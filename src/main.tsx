@@ -10,6 +10,7 @@ import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-index
 import { RepoContext } from "@automerge/automerge-repo-react-hooks";
 import App from "./App.tsx";
 import "./index.css";
+import { MyDoc } from "./utils/shared-data.ts";
 
 const broadcast = new BroadcastChannelNetworkAdapter();
 const indexedDB = new IndexedDBStorageAdapter();
@@ -20,10 +21,6 @@ const repo = new Repo({
 });
 
 let handle: DocHandle<string>;
-
-type MyDoc = {
-  text: string;
-};
 
 const rootDocUrl = `${document.location.hash.substring(1)}`;
 

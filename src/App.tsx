@@ -5,13 +5,67 @@ import { type AutomergeUrl } from "@automerge/automerge-repo";
 import * as A from "@automerge/automerge/next";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { useEffect, useRef } from "react";
+import { MyDoc } from "./utils/shared-data";
 
 type BetterProp = [string, number];
 
 /**
- * make this real
+ * TODO:
+ *
+ * [ ] DRY up actions
+ * [ ] pull out patch logic into a function
+ * [ ] add better type guards
+ * [ ] write acceptance tests
  */
 const isBetterProp = (prop: any): prop is BetterProp => true;
+
+type HandlePatch = (args: {
+  model: monaco.editor.ITextModel;
+  patch: A.Patch;
+}) => void;
+const handlePatch: HandlePatch = ({ model, patch }) => {
+  if (["splice", "put"].includes(patch.action)) {
+    // @ts-expect-error -- working on it
+    const { value, path, length } = patch;
+    const [, index] = path as BetterProp;
+    const startPosition = model.getPositionAt(index);
+    const endPosition = model.getPositionAt(index + (length || 0));
+    const range = new monaco.Selection(
+      startPosition.lineNumber,
+      startPosition.column,
+      endPosition.lineNumber,
+      endPosition.column,
+    );
+
+    model.applyEdits([
+      {
+        range,
+        text: value,
+      },
+    ]);
+  } else if (patch.action === "del") {
+    // @ts-expect-error -- working on it
+    const { value, path, length } = patch;
+    const [, index] = path as BetterProp;
+    const startPosition = model.getPositionAt(index);
+    const endPosition = model.getPositionAt(index + (length || 1));
+    const range = new monaco.Selection(
+      startPosition.lineNumber,
+      startPosition.column,
+      endPosition.lineNumber,
+      endPosition.column,
+    );
+
+    model.applyEdits([
+      {
+        range,
+        text: value,
+      },
+    ]);
+  } else {
+    throw new Error(`Unsupported patch action: ${patch.action}`);
+  }
+};
 
 type AppProps = {
   docUrl: AutomergeUrl;
@@ -23,7 +77,7 @@ const sortEvents = (
 ): number => secondChange.rangeOffset - firstChange.rangeOffset;
 
 function App({ docUrl }: AppProps) {
-  const handle = useHandle(docUrl);
+  const handle = useHandle<MyDoc>(docUrl);
   const isUpdatingRef = useRef(false);
   const [, changeDoc] = useDocument<{
     text: string;
@@ -36,56 +90,13 @@ function App({ docUrl }: AppProps) {
     handle.on("change", (e) => {
       const model = editorRef.current?.getModel();
 
-      // @ts-expect-error -- working on it
+      // do nothing if automerge and editor are in sync, this distinguishes
+      // between local and remote changes and prevents an infinite loop.
       if (!model || model.getValue() === e.doc.text) return;
 
-      e.patches.forEach((patch) => {
-        isUpdatingRef.current = true;
-
-        if (["splice", "put"].includes(patch.action)) {
-          // @ts-expect-error -- working on it
-          const { value, path, length } = patch;
-          const [, index] = path as BetterProp;
-          const startPosition = model.getPositionAt(index);
-          const endPosition = model.getPositionAt(index + (length || 0));
-          const range = new monaco.Selection(
-            startPosition.lineNumber,
-            startPosition.column,
-            endPosition.lineNumber,
-            endPosition.column,
-          );
-
-          model.applyEdits([
-            {
-              range,
-              text: value,
-            },
-          ]);
-        } else if (patch.action === "del") {
-          // @ts-expect-error -- working on it
-          const { value, path, length } = patch;
-          const [, index] = path as BetterProp;
-          const startPosition = model.getPositionAt(index);
-          const endPosition = model.getPositionAt(index + (length || 1));
-          const range = new monaco.Selection(
-            startPosition.lineNumber,
-            startPosition.column,
-            endPosition.lineNumber,
-            endPosition.column,
-          );
-
-          model.applyEdits([
-            {
-              range,
-              text: value,
-            },
-          ]);
-        } else {
-          throw new Error(`Unsupported patch action: ${patch.action}`);
-        }
-
-        isUpdatingRef.current = false;
-      });
+      isUpdatingRef.current = true;
+      e.patches.forEach((patch) => handlePatch({ model, patch }));
+      isUpdatingRef.current = false;
     });
 
     return () => {
@@ -111,7 +122,7 @@ function App({ docUrl }: AppProps) {
     return () => {
       listener.dispose();
     };
-  }, [changeDoc, editorRef]);
+  }, [changeDoc]);
 
   return (
     <main>
