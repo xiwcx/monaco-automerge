@@ -10,7 +10,6 @@ import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-index
 import { RepoContext } from "@automerge/automerge-repo-react-hooks";
 import App from "./App.tsx";
 import "./index.css";
-import { DOC_URL } from "./utils/shared-data.ts";
 
 const broadcast = new BroadcastChannelNetworkAdapter();
 const indexedDB = new IndexedDBStorageAdapter();
