@@ -8,6 +8,10 @@ import { Editor } from "../Editor";
 import "./styles.css";
 
 type AutomergeDeleteOrInsertPath = [string, number];
+/**
+ * Automerge's `Prop` type is an indescriminate union of string and number, so we
+ * need to provide a type guard to treat it as a proper tuple.
+ */
 const isDeleteOrInsertPath = (
   props: A.Prop[],
 ): props is AutomergeDeleteOrInsertPath => {
@@ -23,6 +27,10 @@ const isPutOrSplicePatch = (
 };
 
 type GetIndexFromPath = (path: A.Prop[]) => number;
+/**
+ * Automerge has length as an optional property in the path tuple, so we need
+ * to provide a fallback.
+ */
 const getIndexFromPath: GetIndexFromPath = (path) =>
   isDeleteOrInsertPath(path) ? path[1] : 0;
 
@@ -89,22 +97,31 @@ const sortEvents = (
   secondChange: monaco.editor.IModelContentChange,
 ): number => secondChange.rangeOffset - firstChange.rangeOffset;
 
+/**
+ * The monaco editor cannot be treated as a controlled component
+ */
 export function AutomergeMonacoBinder({ docUrl }: AppProps) {
   const handle = useHandle<MyDoc>(docUrl);
+  /**
+   * This value is used to prevent an infinite loop where updates bounce
+   * between different users.
+   */
   const isUpdatingRef = useRef(false);
   const [, changeDoc] = useDocument<{
     text: string;
   }>(docUrl);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
+  // Handle input from automerge
   useEffect(() => {
     if (!handle || !editorRef) return;
 
     handle.on("change", (e) => {
       const model = editorRef.current?.getModel();
 
-      // do nothing if automerge and editor are in sync, this distinguishes
-      // between local and remote changes and prevents an infinite loop.
+      // do nothing if automerge and editor are in sync, this allows us to
+      // distinguish between local and remote changes, only acting
+      // on remote changes.
       if (!model || model.getValue() === e.doc.text) return;
 
       isUpdatingRef.current = true;
@@ -113,10 +130,11 @@ export function AutomergeMonacoBinder({ docUrl }: AppProps) {
     });
 
     return () => {
-      handle?.off("change");
+      handle.off("change");
     };
   }, [handle]);
 
+  // Handle output from the editor
   useEffect(() => {
     if (!editorRef.current) return;
 
