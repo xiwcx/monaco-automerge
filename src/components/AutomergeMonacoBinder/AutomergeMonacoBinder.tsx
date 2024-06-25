@@ -1,11 +1,11 @@
-import { Editor } from "./components/Editor";
-import "./App.css";
-import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
 import { type AutomergeUrl } from "@automerge/automerge-repo";
+import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
 import * as A from "@automerge/automerge/next";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { useEffect, useRef } from "react";
-import { MyDoc } from "./utils/shared-data";
+import { MyDoc } from "../../utils/shared-data";
+import { Editor } from "../Editor";
+import "./styles.css";
 
 type AutomergeDeleteOrInsertPath = [string, number];
 const isDeleteOrInsertPath = (
@@ -89,7 +89,7 @@ const sortEvents = (
   secondChange: monaco.editor.IModelContentChange,
 ): number => secondChange.rangeOffset - firstChange.rangeOffset;
 
-function App({ docUrl }: AppProps) {
+export function AutomergeMonacoBinder({ docUrl }: AppProps) {
   const handle = useHandle<MyDoc>(docUrl);
   const isUpdatingRef = useRef(false);
   const [, changeDoc] = useDocument<{
@@ -146,5 +146,3 @@ function App({ docUrl }: AppProps) {
     </main>
   );
 }
-
-export default App;
