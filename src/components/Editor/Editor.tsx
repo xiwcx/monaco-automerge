@@ -5,9 +5,10 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 type EditorProps = {
   divProps?: React.HTMLProps<HTMLDivElement>;
   options?: monaco.editor.IStandaloneEditorConstructionOptions;
+  onCreate?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
 };
 
-export const Editor = ({ divProps, options }: EditorProps) => {
+export const Editor = ({ divProps, onCreate, options }: EditorProps) => {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const elRef = useRef<HTMLDivElement | null>(null);
 
@@ -22,6 +23,12 @@ export const Editor = ({ divProps, options }: EditorProps) => {
     return () => {
       editorRef.current?.dispose();
     };
+  }, [options]);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    onCreate?.(editorRef.current);
   });
 
   return <div ref={elRef} {...divProps} />;
