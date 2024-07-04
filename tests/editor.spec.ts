@@ -17,21 +17,17 @@ test("single user entering content", async ({ page }) => {
   );
 });
 
-/**
- * - passes every time with `npx playwright test --ui`
- * - fails every time with `npx playwright test` locally
- * - flaky with `npx playwright test` on CI
- */
 test("multiple users entering content", async ({ context }) => {
   const pageOne = await context.newPage();
   const pageTwo = await context.newPage();
 
   await pageOne.goto("/");
+  // wait for navigation to doc handle url
+  await pageOne.waitForURL(/#/);
 
   const url = pageOne.url();
 
   await pageTwo.goto(url);
-
   await pageOne.getByRole("textbox").pressSequentially('const foo = "bar";\n');
 
   await expect(await pageTwo.getByRole("presentation")).toHaveText(
