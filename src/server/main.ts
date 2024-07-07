@@ -33,8 +33,8 @@ app.get("/foo", (req, res) => {
   return res.send("Hello World!");
 });
 
-ViteExpress.listen(app, 3000, () =>
-  console.log("Server is listening on port 3000..."),
+ViteExpress.listen(app, 3030, () =>
+  console.log("Server is listening on port 3030..."),
 );
 
 const server = app.listen(port);
