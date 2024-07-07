@@ -10,10 +10,7 @@ import ViteExpress from "vite-express";
  * - https://docs.render.com/environment-variables#all-runtimes-1
  * - https://github.com/render-examples/express-hello-world/blob/main/app.js#L3
  */
-const port =
-  process.env.RENDER && typeof process.env.port === "string"
-    ? Number(process.env.port)
-    : 8080;
+const port = process.env.port ? Number(process.env.port) : 8080;
 const dir = "automerge-sync-server-data";
 
 if (!fs.existsSync(dir)) {
