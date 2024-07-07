@@ -40,7 +40,9 @@ ViteExpress.listen(app, 3030, () =>
 const server = app.listen(port);
 
 server.on("upgrade", (request, socket, head) => {
+  console.log("server upgrading");
   wss.handleUpgrade(request, socket, head, (socket) => {
+    console.log("socket emitting");
     wss.emit("connection", socket, request);
   });
 });
