@@ -20,8 +20,6 @@ if (!fs.existsSync(dir)) {
 const wss = new WebSocketServer({ noServer: true });
 const app = express();
 
-wss.on("error", console.error);
-
 const config = {
   network: [new NodeWSServerAdapter(wss)],
   storage: new NodeFSStorageAdapter(dir),
@@ -38,10 +36,8 @@ const server = ViteExpress.listen(app, port, () =>
 );
 
 server.on("upgrade", (request, socket, head) => {
-  console.log("server upgrading");
   if (request.url?.startsWith("/automerge")) {
     wss.handleUpgrade(request, socket, head, (socket) => {
-      console.log("socket emitting");
       wss.emit("connection", socket, request);
     });
   }
