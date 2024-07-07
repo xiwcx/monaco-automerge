@@ -20,6 +20,8 @@ if (!fs.existsSync(dir)) {
 const wss = new WebSocketServer({ noServer: true });
 const app = express();
 
+wss.on("error", console.error);
+
 const config = {
   network: [new NodeWSServerAdapter(wss)],
   storage: new NodeFSStorageAdapter(dir),
