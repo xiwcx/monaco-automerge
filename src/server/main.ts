@@ -6,6 +6,11 @@ import { Repo } from "@automerge/automerge-repo";
 import express from "express";
 import ViteExpress from "vite-express";
 
+/**
+ * - https://docs.render.com/environment-variables#all-runtimes-1
+ * - https://github.com/render-examples/express-hello-world/blob/main/app.js#L3
+ */
+const port = process.env.RENDER ? process.env.port : 8080;
 const dir = "automerge-sync-server-data";
 
 if (!fs.existsSync(dir)) {
@@ -30,7 +35,7 @@ ViteExpress.listen(app, 3000, () =>
   console.log("Server is listening on port 3000..."),
 );
 
-const server = app.listen(8080);
+const server = app.listen(port);
 
 server.on("upgrade", (request, socket, head) => {
   wss.handleUpgrade(request, socket, head, (socket) => {
