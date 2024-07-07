@@ -3,20 +3,20 @@ import {
   Repo,
   isValidAutomergeUrl,
 } from "@automerge/automerge-repo";
-import { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-network-broadcastchannel";
+import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
 import { RepoContext } from "@automerge/automerge-repo-react-hooks";
 import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-indexeddb";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { AutomergeMonacoBinder } from "./components/AutomergeMonacoBinder/index.ts";
+import { AutomergeMonacoBinder } from "./components/AutomergeMonacoBinder/index";
 import "./index.css";
-import { MyDoc } from "./utils/shared-data.ts";
+import { MyDoc } from "./utils/shared-data";
 
-const broadcast = new BroadcastChannelNetworkAdapter();
+const ws = new BrowserWebSocketClientAdapter(__WEBSOCKET_URL__);
 const indexedDB = new IndexedDBStorageAdapter();
 
 const repo = new Repo({
-  network: [broadcast],
+  network: [ws],
   storage: indexedDB,
 });
 
