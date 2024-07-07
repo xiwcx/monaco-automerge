@@ -12,7 +12,7 @@ import { AutomergeMonacoBinder } from "./components/AutomergeMonacoBinder/index"
 import "./index.css";
 import { MyDoc } from "./utils/shared-data";
 
-const ws = new BrowserWebSocketClientAdapter(__WEBSOCKET_URL__);
+const ws = new BrowserWebSocketClientAdapter(`${__WEBSOCKET_URL__}/automerge`);
 const indexedDB = new IndexedDBStorageAdapter();
 
 const repo = new Repo({

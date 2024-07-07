@@ -10,7 +10,7 @@ import ViteExpress from "vite-express";
  * - https://docs.render.com/environment-variables#all-runtimes-1
  * - https://github.com/render-examples/express-hello-world/blob/main/app.js#L3
  */
-const port = process.env.RENDER ? process.env.port : 8080;
+const port = process.env.port ? Number(process.env.port) : 8080;
 const dir = "automerge-sync-server-data";
 
 if (!fs.existsSync(dir)) {
@@ -31,14 +31,14 @@ app.get("/foo", (req, res) => {
   return res.send("Hello World!");
 });
 
-ViteExpress.listen(app, 3000, () =>
-  console.log("Server is listening on port 3000..."),
+const server = ViteExpress.listen(app, port, () =>
+  console.log(`Server is listening on port ${port}...`),
 );
 
-const server = app.listen(port);
-
 server.on("upgrade", (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (socket) => {
-    wss.emit("connection", socket, request);
-  });
+  if (request.url?.startsWith("/automerge")) {
+    wss.handleUpgrade(request, socket, head, (socket) => {
+      wss.emit("connection", socket, request);
+    });
+  }
 });
