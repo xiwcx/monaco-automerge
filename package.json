@@ -30,6 +30,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.45.0",
+    "@tanstack/router-devtools": "^1.43.12",
+    "@tanstack/router-plugin": "^1.43.12",
     "@testing-library/dom": "^10.1.0",
     "@testing-library/react": "^16.0.0",
     "@types/express": "^4.17.21",
