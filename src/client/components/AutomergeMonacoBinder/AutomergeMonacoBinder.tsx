@@ -58,20 +58,29 @@ export function AutomergeMonacoBinder({ docUrl }: AppProps) {
   useEffect(() => {
     if (!editorRef.current) return;
 
-    const listener = editorRef.current.onDidChangeModelContent((event) => {
-      if (isUpdatingRef.current) return;
+    const contentListener = editorRef.current.onDidChangeModelContent(
+      (event) => {
+        if (isUpdatingRef.current) return;
 
-      changeDoc((doc) => {
-        event.changes.sort(sortEvents).forEach((change) => {
-          const { rangeOffset, rangeLength, text } = change;
+        changeDoc((doc) => {
+          event.changes.sort(sortEvents).forEach((change) => {
+            const { rangeOffset, rangeLength, text } = change;
 
-          A.splice(doc, ["text"], rangeOffset, rangeLength, text);
+            A.splice(doc, ["text"], rangeOffset, rangeLength, text);
+          });
         });
-      });
-    });
+      },
+    );
+
+    const cursorListener = editorRef.current.onDidChangeCursorPosition(
+      (event) => {
+        console.log("cursor", event);
+      },
+    );
 
     return () => {
-      listener.dispose();
+      contentListener.dispose();
+      cursorListener.dispose();
     };
   }, [changeDoc]);
 

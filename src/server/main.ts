@@ -3,8 +3,10 @@ import { WebSocketServer } from "ws";
 import { NodeWSServerAdapter } from "@automerge/automerge-repo-network-websocket";
 import { NodeFSStorageAdapter } from "@automerge/automerge-repo-storage-nodefs";
 import { Repo } from "@automerge/automerge-repo";
-import express from "express";
+import express, { RequestHandler } from "express";
+import cookieParser from "cookie-parser";
 import ViteExpress from "vite-express";
+import { uuidv7 } from "uuidv7";
 
 /**
  * - https://docs.render.com/environment-variables#all-runtimes-1
@@ -26,6 +28,20 @@ const config = {
 };
 
 new Repo(config);
+
+/**
+ * quick stand-in for proper authentication/session
+ */
+const setUserId: RequestHandler = (req, res, next) => {
+  if (!req.cookies.userId) {
+    res.cookie("userId", uuidv7());
+  }
+
+  next();
+};
+
+app.use(cookieParser());
+app.use(setUserId);
 
 app.get("/foo", (req, res) => {
   return res.send("Hello World!");
