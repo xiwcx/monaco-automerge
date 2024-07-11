@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test("single user entering content", async ({ page }) => {
   await page.goto("/");
+  await page.getByText("Create New Doc").click();
+  await page.waitForURL(/doc/);
   await page.getByRole("textbox").pressSequentially('const foo = "bar";\n');
 
   await expect(await page.getByRole("presentation")).toHaveText(
@@ -22,8 +24,8 @@ test("multiple users entering content", async ({ context }) => {
   const pageTwo = await context.newPage();
 
   await pageOne.goto("/");
-  // wait for navigation to doc handle url
-  await pageOne.waitForURL(/#/);
+  await pageOne.getByText("Create New Doc").click();
+  await pageOne.waitForURL(/doc/);
 
   const url = pageOne.url();
 

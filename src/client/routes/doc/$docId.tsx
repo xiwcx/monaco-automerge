@@ -28,8 +28,6 @@ export const Route = createFileRoute("/doc/$docId")({
 function DocComponent() {
   const { repo, handle } = Route.useLoaderData();
 
-  console.log("hi");
-
   return (
     <RepoContext.Provider value={repo}>
       <AutomergeMonacoBinder docUrl={handle.url} />
