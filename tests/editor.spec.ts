@@ -28,6 +28,9 @@ test("multiple users entering content", async ({ context }) => {
   const url = pageOne.url();
 
   await pageTwo.goto(url);
+
+  await expect(await pageTwo.getByRole("presentation")).toHaveText("");
+
   await pageOne.getByRole("textbox").pressSequentially('const foo = "bar";\n');
 
   await expect(await pageTwo.getByRole("presentation")).toHaveText(
