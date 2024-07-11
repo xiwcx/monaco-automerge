@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-import { handlePatch } from "./utils";
+import { handlePatch } from "./automerge-monaco-binding";
 import * as A from "@automerge/automerge/next";
 
 vi.mock("monaco-editor/esm/vs/editor/editor.api", async (importOriginal) => {
