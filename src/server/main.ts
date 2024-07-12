@@ -27,10 +27,6 @@ const config = {
 
 new Repo(config);
 
-app.get("/foo", (req, res) => {
-  return res.send("Hello World!");
-});
-
 const server = ViteExpress.listen(app, port, () =>
   console.log(`Server is listening on port ${port}...`),
 );

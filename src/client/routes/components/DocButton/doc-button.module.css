@@ -1,0 +1,20 @@
+.doc + .doc {
+  margin-block-start: 0.5em;
+}
+
+.title {
+  color: var(--color-text);
+  font-family: var(--font-family-monospace);
+}
+
+.go {
+  background-color: var(--color-affirmative);
+  color: var(--color-text);
+  display: inline-block;
+  margin-inline-end: 0.5em;
+  margin-inline-start: 0.5em;
+}
+
+.delete {
+  background-color: var(--color-negative);
+}

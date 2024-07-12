@@ -1,25 +1,28 @@
-import { DocHandle, isValidAutomergeUrl } from "@automerge/automerge-repo";
-import React from "react";
+import React, { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
-import { AutomergeMonacoBinder } from "./components/AutomergeMonacoBinder/index";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
 import "./index.css";
-import { MyDoc } from "./utils/shared-data";
-import { repo } from "./utils/repo";
 
-let handle: DocHandle<MyDoc>;
+// Import the generated route tree
+import { routeTree } from "./routeTree.gen";
 
-const rootDocUrl = `${document.location.hash.substring(1)}`;
+// Create a new router instance
+const router = createRouter({ routeTree });
 
-if (isValidAutomergeUrl(rootDocUrl)) {
-  handle = repo.find<MyDoc>(rootDocUrl);
-} else {
-  handle = repo.create<MyDoc>({ text: "" });
+// Register the router instance for type safety
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
 }
 
-const docUrl = (document.location.hash = handle.url);
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <AutomergeMonacoBinder docUrl={docUrl} />
-  </React.StrictMode>,
-);
+// Render the app
+const rootElement = document.getElementById("root")!;
+if (!rootElement.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <StrictMode>
+      <RouterProvider router={router} />
+    </StrictMode>,
+  );
+}
