@@ -1,25 +1,33 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { repo } from "../utils/repo";
-import { Link } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
+import { D } from "@mobily/ts-belt";
+import { DocButton } from "./components/DocButton";
 
 export const Route = createFileRoute("/")({
-  loader: () => repo.handles,
+  loader: () => ({
+    repo,
+  }),
   component: IndexComponent,
 });
 
 function IndexComponent() {
-  const handles = Route.useLoaderData();
+  const { repo } = Route.useLoaderData();
+  const router = useRouter();
   const navigate = useNavigate({ from: "/doc/$docId" });
 
   return (
-    <main>
-      <ul>
-        {Object.keys(handles).map((docId) => (
-          <li key={docId}>
-            <Link to="/doc/$docId" params={{ docId }}>
-              {docId}
-            </Link>
-          </li>
+    <main className="main-content">
+      <ul className="doc-list">
+        {D.keys(repo.handles).map((docId) => (
+          <DocButton
+            docId={docId}
+            key={docId}
+            onDelete={() => {
+              repo.delete(docId);
+              router.invalidate();
+            }}
+          />
         ))}
       </ul>
 

@@ -25,6 +25,7 @@ export default defineConfig({
     wasm(),
     react(),
     TanStackRouterVite({
+      routeFilePrefix: "~",
       generatedRouteTree: "src/client/routeTree.gen.ts",
       routesDirectory: "src/client/routes",
     }),

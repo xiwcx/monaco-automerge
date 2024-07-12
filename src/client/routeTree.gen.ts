@@ -10,9 +10,9 @@
 
 // Import Routes
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as IndexImport } from './routes/index'
-import { Route as DocDocIdImport } from './routes/doc/$docId'
+import { Route as rootRoute } from './routes/~__root'
+import { Route as IndexImport } from './routes/~index'
+import { Route as DocDocIdImport } from './routes/~doc/~$docId'
 
 // Create/Update Routes
 
@@ -57,17 +57,17 @@ export const routeTree = rootRoute.addChildren({ IndexRoute, DocDocIdRoute })
 {
   "routes": {
     "__root__": {
-      "filePath": "__root.tsx",
+      "filePath": "~__root.tsx",
       "children": [
         "/",
         "/doc/$docId"
       ]
     },
     "/": {
-      "filePath": "index.tsx"
+      "filePath": "~index.tsx"
     },
     "/doc/$docId": {
-      "filePath": "doc/$docId.tsx"
+      "filePath": "~doc/~$docId.tsx"
     }
   }
 }
