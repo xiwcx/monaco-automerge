@@ -95,9 +95,7 @@ const sortEvents = (
 export class AutomergeMonacoBinding {
   #automergeHandle: DocHandle<MonacoDoc>;
   #monacoModel: monaco.editor.ITextModel;
-  #editor: monaco.editor.IStandaloneCodeEditor;
   #modelChangeListener: monaco.IDisposable;
-  #editorDisposeListener: monaco.IDisposable;
 
   #isAutomergeDocUpdating = false;
 
@@ -142,11 +140,9 @@ export class AutomergeMonacoBinding {
   constructor(
     handle: DocHandle<MonacoDoc>,
     monacoModel: monaco.editor.ITextModel,
-    editor: monaco.editor.IStandaloneCodeEditor,
   ) {
     this.#automergeHandle = handle;
     this.#monacoModel = monacoModel;
-    this.#editor = editor;
 
     this.#initialSync();
 
@@ -156,15 +152,10 @@ export class AutomergeMonacoBinding {
     this.#modelChangeListener = this.#monacoModel.onDidChangeContent(
       this.#monacoModelChangeHandler,
     );
-
-    this.#editorDisposeListener = this.#editor.onDidDispose(() => {
-      this.destroy();
-    });
   }
 
   destroy() {
     this.#automergeHandle.off("change");
     this.#modelChangeListener.dispose();
-    this.#editorDisposeListener.dispose();
   }
 }

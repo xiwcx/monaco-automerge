@@ -123,8 +123,11 @@ describe("AutomergeMonacoBinding class", () => {
     off: Mock;
     docSync: Mock;
   };
+  let model: monaco.editor.ITextModel;
 
   beforeEach(() => {
+    model = monaco.editor.createModel("");
+
     mockHandle = {
       docSync: vi.fn().mockReturnValue({ text: "// comment" }),
       off: vi.fn(),
@@ -137,66 +140,36 @@ describe("AutomergeMonacoBinding class", () => {
   });
 
   it("constructor functions as expected", async () => {
-    const mockMonacoModel = {
-      onDidChangeContent: vi.fn(),
-      setValue: vi.fn(),
-    };
-    const mockEditor = { onDidDispose: vi.fn() };
+    const onDidChangeContentSpy = vi.spyOn(model, "onDidChangeContent");
+    const setValueSpy = vi.spyOn(model, "setValue");
     // @ts-expect-error -- mocking in a test environment
-    new AutomergeMonacoBinding(mockHandle, mockMonacoModel, mockEditor);
+    new AutomergeMonacoBinding(mockHandle, model);
 
     // initial sync
     expect(mockHandle.docSync).toHaveBeenCalledTimes(1);
-    expect(mockMonacoModel.setValue).toHaveBeenCalledTimes(1);
-    expect(mockMonacoModel.setValue).toHaveBeenCalledWith("// comment");
+    expect(setValueSpy).toHaveBeenCalledTimes(1);
+    expect(setValueSpy).toHaveBeenCalledWith("// comment");
 
     // event handlers are set
     expect(mockHandle.on).toHaveBeenCalledTimes(1);
     expect(mockHandle.on).toHaveBeenCalledWith("change", expect.any(Function));
-
-    expect(mockMonacoModel.onDidChangeContent).toHaveBeenCalledTimes(1);
-    expect(mockMonacoModel.onDidChangeContent).toHaveBeenCalledWith(
-      expect.any(Function),
-    );
-
-    expect(mockEditor.onDidDispose).toHaveBeenCalledTimes(1);
-    expect(mockEditor.onDidDispose).toHaveBeenCalledWith(expect.any(Function));
+    expect(onDidChangeContentSpy).toHaveBeenCalledTimes(1);
+    expect(onDidChangeContentSpy).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it("destroys listeners when editor is disposed", async () => {
-    const mockModelDispose = vi.fn();
-    const mockMonacoModel = {
-      onDidChangeContent: vi.fn().mockReturnValue({
-        dispose: mockModelDispose,
-      }),
-      setValue: vi.fn(),
-    };
-    const mockEditorDispose = vi.fn();
-    class mockedEditor {
-      // @ts-expect-error -- mocking in a test environment
-      dispose: () => void;
+  it("destroys functions as expected", async () => {
+    const onModelDisposeMock = vi.fn();
+    vi.spyOn(model, "onDidChangeContent").mockReturnValue({
+      dispose: onModelDisposeMock,
+    });
+    // @ts-expect-error -- mocking in a test environment
+    const binding = new AutomergeMonacoBinding(mockHandle, model);
 
-      onDidDispose(value: () => void) {
-        this.dispose = value;
-
-        return { dispose: mockEditorDispose };
-      }
-    }
-    const mockEditor = new mockedEditor();
-
-    new AutomergeMonacoBinding(
-      // @ts-expect-error -- mocking in a test environment
-      mockHandle,
-      mockMonacoModel,
-      mockEditor,
-    );
-
-    mockEditor.dispose();
+    binding.destroy();
 
     expect(mockHandle.off).toHaveBeenCalledTimes(1);
     expect(mockHandle.off).toHaveBeenCalledWith("change");
 
-    expect(mockModelDispose).toHaveBeenCalledTimes(1);
-    expect(mockEditorDispose).toHaveBeenCalledTimes(1);
+    expect(onModelDisposeMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -24,7 +24,7 @@ export const AutomergeMonacoBinder = memo(
         }
 
         handle.whenReady().then(() => {
-          new AutomergeMonacoBinding(handle, model, editor);
+          new AutomergeMonacoBinding(handle, model);
         });
       }}
       options={{
