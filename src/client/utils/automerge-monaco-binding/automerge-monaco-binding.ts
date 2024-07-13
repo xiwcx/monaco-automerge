@@ -3,6 +3,7 @@ import * as A from "@automerge/automerge/next";
 import type {
   DocHandle,
   DocHandleChangePayload,
+  DocHandleEphemeralMessagePayload,
 } from "@automerge/automerge-repo";
 import { MonacoDoc } from "../shared-data";
 
@@ -87,6 +88,26 @@ export const handlePatch: HandlePatch = ({ model, patch }) => {
   }
 };
 
+const cursorPositionChangedEventToDecoration = (
+  cursorPositionChangedEvent: monaco.editor.ICursorPositionChangedEvent,
+): monaco.editor.IModelDeltaDecoration => {
+  const { position } = cursorPositionChangedEvent;
+
+  return {
+    range: new monaco.Range(
+      position.lineNumber,
+      position.column,
+      position.lineNumber,
+      position.column,
+    ),
+    options: {
+      stickiness:
+        monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      className: "peer-cursor",
+    },
+  };
+};
+
 const sortEvents = (
   firstChange: monaco.editor.IModelContentChange,
   secondChange: monaco.editor.IModelContentChange,
@@ -94,10 +115,15 @@ const sortEvents = (
 
 export class AutomergeMonacoBinding {
   #automergeHandle: DocHandle<MonacoDoc>;
+  #editorCursorChangeListener: monaco.IDisposable;
+  #monacoEditor: monaco.editor.IStandaloneCodeEditor;
+  #monacoEditorDecorationsCollection: monaco.editor.IEditorDecorationsCollection;
   #monacoModel: monaco.editor.ITextModel;
   #modelChangeListener: monaco.IDisposable;
+  #userId: string;
 
   #isAutomergeDocUpdating = false;
+  #peerCursorPositions = new Map<string, monaco.editor.IModelDeltaDecoration>();
 
   #initialSync() {
     const doc = this.#automergeHandle.docSync();
@@ -125,6 +151,19 @@ export class AutomergeMonacoBinding {
     }
   };
 
+  #docEphemeralMessageHandler = ({
+    senderId,
+    message,
+  }: DocHandleEphemeralMessagePayload<MonacoDoc>) => {
+    this.#peerCursorPositions.set(senderId, message.cursorPositionChangedEvent);
+
+    const newDecorations = Array.from(this.#peerCursorPositions.values()).map(
+      cursorPositionChangedEventToDecoration,
+    );
+
+    this.#monacoEditorDecorationsCollection.set(newDecorations);
+  };
+
   #monacoModelChangeHandler = (e: monaco.editor.IModelContentChangedEvent) => {
     if (!this.#isAutomergeDocUpdating) {
       this.#automergeHandle.change((doc) => {
@@ -137,25 +176,53 @@ export class AutomergeMonacoBinding {
     }
   };
 
+  #monacoCursorChangeHandler = (
+    cursorPositionChangedEvent: monaco.editor.ICursorPositionChangedEvent,
+  ) => {
+    this.#automergeHandle.broadcast({
+      cursorPositionChangedEvent,
+      userId: this.#userId,
+    });
+  };
+
   constructor(
     handle: DocHandle<MonacoDoc>,
+    userId: string,
     monacoModel: monaco.editor.ITextModel,
+    editor: monaco.editor.IStandaloneCodeEditor,
   ) {
     this.#automergeHandle = handle;
     this.#monacoModel = monacoModel;
+    this.#monacoEditor = editor;
+    this.#userId = userId;
 
     this.#initialSync();
 
     // set up event listeners
     this.#automergeHandle.on("change", this.#docChangeHandler);
 
+    this.#automergeHandle.on(
+      "ephemeral-message",
+      this.#docEphemeralMessageHandler,
+    );
+
     this.#modelChangeListener = this.#monacoModel.onDidChangeContent(
       this.#monacoModelChangeHandler,
     );
+
+    this.#editorCursorChangeListener =
+      this.#monacoEditor.onDidChangeCursorPosition(
+        this.#monacoCursorChangeHandler,
+      );
+
+    this.#monacoEditorDecorationsCollection =
+      this.#monacoEditor.createDecorationsCollection();
   }
 
   destroy() {
     this.#automergeHandle.off("change");
+    this.#automergeHandle.off("ephemeral-message");
     this.#modelChangeListener.dispose();
+    this.#editorCursorChangeListener.dispose();
   }
 }

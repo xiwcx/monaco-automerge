@@ -88,3 +88,8 @@ button:focus-visible {
   list-style-type: none;
   padding: 0;
 }
+
+.peer-cursor {
+  background: rgba(252, 227, 99, 0.356);
+  width: 7px !important;
+}

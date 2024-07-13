@@ -3,8 +3,10 @@ import { WebSocketServer } from "ws";
 import { NodeWSServerAdapter } from "@automerge/automerge-repo-network-websocket";
 import { NodeFSStorageAdapter } from "@automerge/automerge-repo-storage-nodefs";
 import { Repo } from "@automerge/automerge-repo";
-import express from "express";
+import express, { RequestHandler, RequestParamHandler } from "express";
+import cookieParser from "cookie-parser";
 import ViteExpress from "vite-express";
+import { nanoid } from "nanoid";
 
 /**
  * - https://docs.render.com/environment-variables#all-runtimes-1
@@ -26,6 +28,18 @@ const config = {
 };
 
 new Repo(config);
+
+app.use(cookieParser());
+
+const setUserIdCookie: RequestHandler = (req, res, next) => {
+  if (!req.cookies.userId) {
+    res.cookie("userId", nanoid());
+  }
+
+  next();
+};
+
+app.use(setUserIdCookie);
 
 const server = ViteExpress.listen(app, port, () =>
   console.log(`Server is listening on port ${port}...`),
