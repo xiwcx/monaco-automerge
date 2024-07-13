@@ -90,6 +90,30 @@ button:focus-visible {
 }
 
 .peer-cursor {
-  background: rgba(252, 227, 99, 0.356);
+  background: oklch(72% 0.15 98 / 35%);
   width: 7px !important;
+}
+
+.peer-cursor--yellow {
+  background: oklch(72% 0.15 98 / 35%);
+}
+
+.peer-cursor--blue {
+  background: oklch(72% 0.15 225 / 35%);
+}
+
+.peer-cursor--green {
+  background: oklch(72% 0.15 135 / 35%);
+}
+
+.peer-cursor--orange {
+  background: oklch(72% 0.15 45 / 35%);
+}
+
+.peer-cursor--purple {
+  background: oklch(72% 0.15 315 / 35%);
+}
+
+.peer-cursor--red {
+  background: oklch(72% 0.15 0 / 35%);
 }

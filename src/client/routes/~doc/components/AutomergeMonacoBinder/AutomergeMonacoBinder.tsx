@@ -35,6 +35,7 @@ export const AutomergeMonacoBinder = memo(
       }}
       options={{
         automaticLayout: true,
+        cursorStyle: "block",
       }}
     />
   ),
