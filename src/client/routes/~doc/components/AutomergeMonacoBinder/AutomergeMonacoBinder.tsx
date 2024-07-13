@@ -1,5 +1,5 @@
 import { type AutomergeUrl } from "@automerge/automerge-repo";
-import { MyDoc } from "../../../../utils/shared-data";
+import { MonacoDoc } from "../../../../utils/shared-data";
 import { repo } from "../../../../utils/repo";
 import { AutomergeMonacoBinding } from "../../../../utils/automerge-monaco-binding";
 import Editor from "@monaco-editor/react";
@@ -16,7 +16,7 @@ export const AutomergeMonacoBinder = memo(
       width="100dvw"
       theme="vs-dark"
       onMount={(editor) => {
-        const handle = repo.find<MyDoc>(docUrl);
+        const handle = repo.find<MonacoDoc>(docUrl);
         const model = editor.getModel();
 
         if (!handle || !model) {

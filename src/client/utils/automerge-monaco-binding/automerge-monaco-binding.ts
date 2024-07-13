@@ -1,7 +1,10 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import * as A from "@automerge/automerge/next";
-import type { DocHandle } from "@automerge/automerge-repo";
-import { MyDoc } from "../shared-data";
+import type {
+  DocHandle,
+  DocHandleChangePayload,
+} from "@automerge/automerge-repo";
+import { MonacoDoc } from "../shared-data";
 
 type AutomergeDeleteOrInsertPath = [string, number];
 /**
@@ -90,60 +93,69 @@ const sortEvents = (
 ): number => secondChange.rangeOffset - firstChange.rangeOffset;
 
 export class AutomergeMonacoBinding {
-  #handle: DocHandle<MyDoc>;
+  #automergeHandle: DocHandle<MonacoDoc>;
   #monacoModel: monaco.editor.ITextModel;
   #editor: monaco.editor.IStandaloneCodeEditor;
   #modelChangeListener: monaco.IDisposable;
   #editorDisposeListener: monaco.IDisposable;
-  /**
-   * initial value while document is syncing
-   */
-  #isUpdating = true;
+
+  #isAutomergeDocUpdating = false;
 
   #initialSync() {
-    const doc = this.#handle.docSync();
+    const doc = this.#automergeHandle.docSync();
 
     if (doc) {
+      this.#isAutomergeDocUpdating = true;
       this.#monacoModel.setValue(doc.text);
+      this.#isAutomergeDocUpdating = false;
     }
-
-    this.#isUpdating = false;
   }
 
+  #docChangeHandler = (event: DocHandleChangePayload<MonacoDoc>) => {
+    /**
+     * this allows us to distinguish between changes made by the user in the
+     * editor and changes made by the automerge doc.
+     */
+    const isNotInSync = this.#monacoModel.getValue() !== event.doc.text;
+
+    if (isNotInSync) {
+      this.#isAutomergeDocUpdating = true;
+      event.patches.forEach((patch) =>
+        handlePatch({ model: this.#monacoModel, patch }),
+      );
+      this.#isAutomergeDocUpdating = false;
+    }
+  };
+
+  #monacoModelChangeHandler = (e: monaco.editor.IModelContentChangedEvent) => {
+    if (!this.#isAutomergeDocUpdating) {
+      this.#automergeHandle.change((doc) => {
+        e.changes.sort(sortEvents).forEach((change) => {
+          const { rangeOffset, rangeLength, text } = change;
+
+          A.splice(doc, ["text"], rangeOffset, rangeLength, text);
+        });
+      });
+    }
+  };
+
   constructor(
-    handle: DocHandle<MyDoc>,
+    handle: DocHandle<MonacoDoc>,
     monacoModel: monaco.editor.ITextModel,
     editor: monaco.editor.IStandaloneCodeEditor,
   ) {
-    this.#handle = handle;
+    this.#automergeHandle = handle;
     this.#monacoModel = monacoModel;
     this.#editor = editor;
 
     this.#initialSync();
 
-    this.#handle.on("change", (e) => {
-      const isNotInSync = this.#monacoModel.getValue() !== e.doc.text;
+    // set up event listeners
+    this.#automergeHandle.on("change", this.#docChangeHandler);
 
-      if (isNotInSync) {
-        this.#isUpdating = true;
-        e.patches.forEach((patch) =>
-          handlePatch({ model: this.#monacoModel, patch }),
-        );
-        this.#isUpdating = false;
-      }
-    });
-
-    this.#modelChangeListener = this.#monacoModel.onDidChangeContent((e) => {
-      if (!this.#isUpdating) {
-        this.#handle.change((doc) => {
-          e.changes.sort(sortEvents).forEach((change) => {
-            const { rangeOffset, rangeLength, text } = change;
-
-            A.splice(doc, ["text"], rangeOffset, rangeLength, text);
-          });
-        });
-      }
-    });
+    this.#modelChangeListener = this.#monacoModel.onDidChangeContent(
+      this.#monacoModelChangeHandler,
+    );
 
     this.#editorDisposeListener = this.#editor.onDidDispose(() => {
       this.destroy();
@@ -151,7 +163,7 @@ export class AutomergeMonacoBinding {
   }
 
   destroy() {
-    this.#handle.off("change");
+    this.#automergeHandle.off("change");
     this.#modelChangeListener.dispose();
     this.#editorDisposeListener.dispose();
   }

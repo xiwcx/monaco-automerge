@@ -1,9 +1,8 @@
-// import { DocHandle, isValidAutomergeUrl } from "@automerge/automerge-repo";
 import { createFileRoute } from "@tanstack/react-router";
 import { repo } from "../../utils/repo";
 import { AutomergeMonacoBinder } from "./components/AutomergeMonacoBinder";
 import { isValidAutomergeUrl } from "@automerge/automerge-repo";
-import { MyDoc } from "../../utils/shared-data";
+import { MonacoDoc } from "../../utils/shared-data";
 
 export const Route = createFileRoute("/doc/$docId")({
   beforeLoad: ({ params: { docId } }) => {
@@ -16,7 +15,7 @@ export const Route = createFileRoute("/doc/$docId")({
     return { docUrl };
   },
   loader: async ({ context: { docUrl } }) => {
-    const handle = repo.find<MyDoc>(docUrl);
+    const handle = repo.find<MonacoDoc>(docUrl);
 
     try {
       await handle.isReady();
