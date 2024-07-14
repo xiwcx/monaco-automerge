@@ -5,6 +5,7 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { AutomergeMonacoBinding } from "./automerge-monaco-binding";
 
 let mockHandle: {
+  broadcast: Mock;
   on: Mock;
   off: Mock;
   docSync: Mock;
@@ -38,6 +39,7 @@ beforeEach(() => {
   });
 
   mockHandle = {
+    broadcast: vi.fn(),
     docSync: vi.fn().mockReturnValue({ text: "// comment" }),
     off: vi.fn(),
     on: vi.fn(),
@@ -66,6 +68,9 @@ it("constructor functions as expected", async () => {
   expect(mockHandle.docSync).toHaveBeenCalledTimes(1);
   expect(setValueSpy).toHaveBeenCalledTimes(1);
   expect(setValueSpy).toHaveBeenCalledWith("// comment");
+
+  // heartbeat is emitted
+  expect(mockHandle.broadcast).toHaveBeenCalledTimes(1);
 
   // decorations collection is created
   expect(createDecorationsCollectionSpy).toHaveBeenCalledTimes(1);

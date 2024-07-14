@@ -30,10 +30,11 @@ const sortEvents = (
 export class AutomergeMonacoBinding {
   #automergeHandle: DocHandle<MonacoDoc>;
   #editorCursorChangeListener: monaco.IDisposable;
+  #modelChangeListener: monaco.IDisposable;
+  #modelWillDisposeListener: monaco.IDisposable;
   #monacoEditor: monaco.editor.IStandaloneCodeEditor;
   #monacoEditorDecorationsCollection: monaco.editor.IEditorDecorationsCollection;
   #monacoModel: monaco.editor.ITextModel;
-  #modelChangeListener: monaco.IDisposable;
   #cursorStates: CursorStates;
   #peerHeartbeats: Map<string, number>;
   #heartbeatInterval: NodeJS.Timeout;
@@ -179,6 +180,10 @@ export class AutomergeMonacoBinding {
       this.#monacoEditor.onDidChangeCursorPosition(
         this.#monacoCursorChangeHandler,
       );
+
+    this.#modelWillDisposeListener = this.#monacoModel.onWillDispose(() => {
+      this.destroy();
+    });
   }
 
   destroy() {
@@ -188,5 +193,6 @@ export class AutomergeMonacoBinding {
     this.#automergeHandle.off("ephemeral-message");
     this.#modelChangeListener.dispose();
     this.#editorCursorChangeListener.dispose();
+    this.#modelWillDisposeListener.dispose();
   }
 }

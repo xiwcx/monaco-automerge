@@ -3,7 +3,7 @@ import { WebSocketServer } from "ws";
 import { NodeWSServerAdapter } from "@automerge/automerge-repo-network-websocket";
 import { NodeFSStorageAdapter } from "@automerge/automerge-repo-storage-nodefs";
 import { Repo } from "@automerge/automerge-repo";
-import express, { RequestHandler, RequestParamHandler } from "express";
+import express, { RequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import ViteExpress from "vite-express";
 import { nanoid } from "nanoid";
