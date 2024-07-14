@@ -7,8 +7,20 @@ import type {
 } from "@automerge/automerge-repo";
 import { MonacoDoc } from "../shared-data";
 import { handlePatch } from "./handle-patch";
-import { Color, isCursorChangeMessage, PeerStates } from "./common";
-import { handleCursorChange } from "./handle-cursor-change";
+import {
+  Color,
+  isCursorChangeMessage,
+  CursorStates,
+  isHeartbeatMessage,
+  isBaseMessage,
+} from "./common";
+import {
+  getDecorationsFromCursorStates,
+  handleCursorChange,
+} from "./handle-cursor-change";
+
+const heartbeatEmitRate = 15 * 1000;
+const hearbeatCheckRate = 30 * 1000;
 
 const sortEvents = (
   firstChange: monaco.editor.IModelContentChange,
@@ -22,7 +34,10 @@ export class AutomergeMonacoBinding {
   #monacoEditorDecorationsCollection: monaco.editor.IEditorDecorationsCollection;
   #monacoModel: monaco.editor.ITextModel;
   #modelChangeListener: monaco.IDisposable;
-  #peerStates: PeerStates;
+  #cursorStates: CursorStates;
+  #peerHeartbeats: Map<string, number>;
+  #heartbeatInterval: NodeJS.Timeout;
+  #removeDisconnectedPeersInterval: NodeJS.Timeout;
   #userId: string;
   #isAutomergeDocUpdating: boolean;
 
@@ -55,14 +70,20 @@ export class AutomergeMonacoBinding {
   #docEphemeralMessageHandler = ({
     message,
   }: DocHandleEphemeralMessagePayload<MonacoDoc>) => {
+    if (!isBaseMessage(message) || message.userId === this.#userId) return;
+
     if (isCursorChangeMessage(message)) {
       this.#monacoEditorDecorationsCollection.set(
         handleCursorChange({
-          peerStates: this.#peerStates,
+          peerStates: this.#cursorStates,
           position: message.position,
           userId: message.userId,
         }),
       );
+    }
+
+    if (isHeartbeatMessage(message)) {
+      this.#peerHeartbeats.set(message.userId, message.time);
     }
   };
 
@@ -87,6 +108,28 @@ export class AutomergeMonacoBinding {
     });
   };
 
+  #emitHeartbeat = () => {
+    this.#automergeHandle.broadcast({ userId: this.#userId, time: Date.now() });
+  };
+
+  #removeDisconnectedPeers = () => {
+    const now = Date.now();
+    const initialSize = this.#peerHeartbeats.size;
+
+    this.#peerHeartbeats.forEach((time, userId) => {
+      if (now - time > hearbeatCheckRate) {
+        this.#peerHeartbeats.delete(userId);
+        this.#cursorStates.delete(userId);
+      }
+    });
+
+    if (initialSize !== this.#peerHeartbeats.size) {
+      this.#monacoEditorDecorationsCollection.set(
+        getDecorationsFromCursorStates(this.#cursorStates),
+      );
+    }
+  };
+
   constructor(
     handle: DocHandle<MonacoDoc>,
     userId: string,
@@ -98,12 +141,24 @@ export class AutomergeMonacoBinding {
     this.#monacoEditor = editor;
     this.#userId = userId;
     this.#isAutomergeDocUpdating = false;
-    this.#peerStates = new Map<
+    this.#cursorStates = new Map<
       string,
       { color: Color; decoration: monaco.editor.IModelDeltaDecoration }
     >();
+    this.#peerHeartbeats = new Map<string, number>();
 
     this.#initialSync();
+
+    this.#emitHeartbeat();
+    this.#heartbeatInterval = setInterval(
+      this.#emitHeartbeat,
+      heartbeatEmitRate,
+    );
+
+    this.#removeDisconnectedPeersInterval = setInterval(
+      this.#removeDisconnectedPeers,
+      hearbeatCheckRate,
+    );
 
     this.#monacoEditorDecorationsCollection =
       this.#monacoEditor.createDecorationsCollection();
@@ -127,6 +182,8 @@ export class AutomergeMonacoBinding {
   }
 
   destroy() {
+    clearInterval(this.#heartbeatInterval);
+    clearInterval(this.#removeDisconnectedPeersInterval);
     this.#automergeHandle.off("change");
     this.#automergeHandle.off("ephemeral-message");
     this.#modelChangeListener.dispose();

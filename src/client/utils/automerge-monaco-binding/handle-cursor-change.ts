@@ -1,5 +1,5 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-import { Color, PeerStates, CursorChangeMessage, COLORS } from "./common";
+import { Color, CursorStates, COLORS } from "./common";
 
 type CursorPositionChangedEventToDecoration = (args: {
   position: monaco.Position;
@@ -18,11 +18,16 @@ const cursorPositionChangedEventToDecoration: CursorPositionChangedEventToDecora
     },
   });
 
+export const getDecorationsFromCursorStates = (
+  peerStates: CursorStates,
+): monaco.editor.IModelDeltaDecoration[] =>
+  Array.from(peerStates.values()).map(({ decoration }) => decoration);
+
 /**
  * normalize between new and existing peers
  */
 type HandleCursorChange = (args: {
-  peerStates: PeerStates;
+  peerStates: CursorStates;
   position: monaco.Position;
   userId: string;
 }) => monaco.editor.IModelDeltaDecoration[];
@@ -48,5 +53,5 @@ export const handleCursorChange: HandleCursorChange = ({
     }),
   });
 
-  return Array.from(peerStates.values()).map(({ decoration }) => decoration);
+  return getDecorationsFromCursorStates(peerStates);
 };
