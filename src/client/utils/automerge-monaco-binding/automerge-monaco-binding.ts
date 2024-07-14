@@ -184,6 +184,8 @@ export class AutomergeMonacoBinding {
     this.#modelWillDisposeListener = this.#monacoModel.onWillDispose(() => {
       this.destroy();
     });
+
+    this.#monacoEditor.updateOptions({ readOnly: false });
   }
 
   destroy() {

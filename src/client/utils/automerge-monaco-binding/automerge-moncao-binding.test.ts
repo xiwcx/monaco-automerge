@@ -24,6 +24,7 @@ vi.mock("monaco-editor/esm/vs/editor/editor.api", async (importOriginal) => {
       ...monaco.editor,
       create: vi.fn().mockReturnValue({
         createDecorationsCollection: vi.fn(),
+        updateOptions: vi.fn(),
         onDidChangeCursorPosition: vi
           .fn()
           .mockReturnValue({ dispose: vi.fn() }),
@@ -93,6 +94,10 @@ it("constructor functions as expected", async () => {
   expect(onDidChangeCursorPositionSpy).toHaveBeenCalledWith(
     expect.any(Function),
   );
+
+  // editor is taken out of read only mode
+  expect(editor.updateOptions).toHaveBeenCalledTimes(1);
+  expect(editor.updateOptions).toHaveBeenCalledWith({ readOnly: false });
 });
 
 it("destroys functions as expected", async () => {
