@@ -31,6 +31,9 @@ new Repo(config);
 
 app.use(cookieParser());
 
+/**
+ * quick and dirty stand-in for proper user authentication / session
+ */
 const setUserIdCookie: RequestHandler = (req, res, next) => {
   if (!req.cookies.userId) {
     res.cookie("userId", nanoid());
