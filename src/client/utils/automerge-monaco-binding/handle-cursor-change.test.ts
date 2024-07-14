@@ -4,16 +4,6 @@ import { expect, it } from "vitest";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { handleCursorChange } from "./handle-cursor-change";
 
-/**
- * TODO
- *
- * functionality:
- * - add heartbeats
- *
- * acceptance:
- * - test that cursor exists
- * - test that cursor moves
- */
 it("correctly handles cursor change", () => {
   const peerStates = new Map<
     string,

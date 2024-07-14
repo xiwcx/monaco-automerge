@@ -47,6 +47,7 @@ export class AutomergeMonacoBinding {
   #heartbeatInterval: NodeJS.Timeout;
   #removeDisconnectedPeersInterval: NodeJS.Timeout;
 
+  // private methods
   #initialSync() {
     const doc = this.#automergeHandle.docSync();
 
@@ -57,14 +58,13 @@ export class AutomergeMonacoBinding {
     }
   }
 
+  // event handlers
   #docChangeHandler = (event: DocHandleChangePayload<MonacoDoc>) => {
     /**
      * this allows us to distinguish between changes made by the user in the
      * editor and changes made by the automerge doc.
      */
     const isNotInSync = this.#monacoModel.getValue() !== event.doc.text;
-
-    console.log("a", event);
 
     if (isNotInSync) {
       this.#isAutomergeDocUpdating = true;
@@ -88,7 +88,6 @@ export class AutomergeMonacoBinding {
   ) => {
     if (!this.#isAutomergeDocUpdating) {
       this.#automergeHandle.change((doc) => {
-        console.log("m", event);
         event.changes.sort(sortEvents).forEach((change) => {
           const { rangeOffset, rangeLength, text } = change;
 
@@ -127,6 +126,7 @@ export class AutomergeMonacoBinding {
     });
   };
 
+  // interval functions
   #emitHeartbeat = () => {
     this.#automergeHandle.broadcast({ userId: this.#userId, time: Date.now() });
   };
