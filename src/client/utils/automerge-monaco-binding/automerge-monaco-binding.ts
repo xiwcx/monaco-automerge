@@ -1,88 +1,26 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import * as A from "@automerge/automerge/next";
-import type { DocHandle } from "@automerge/automerge-repo";
-import { MyDoc } from "../shared-data";
+import type {
+  DocHandle,
+  DocHandleChangePayload,
+  DocHandleEphemeralMessagePayload,
+} from "@automerge/automerge-repo";
+import { MonacoDoc } from "../shared-data";
+import { handlePatch } from "./handle-patch";
+import {
+  Color,
+  isCursorChangeMessage,
+  CursorStates,
+  isHeartbeatMessage,
+  isBaseMessage,
+} from "./common";
+import {
+  getDecorationsFromCursorStates,
+  handleCursorChange,
+} from "./handle-cursor-change";
 
-type AutomergeDeleteOrInsertPath = [string, number];
-/**
- * Automerge's `Prop` type is an indescriminate union of string and number, so we
- * need to provide a type guard to treat it as a proper tuple.
- */
-const isDeleteOrInsertPath = (
-  props: A.Prop[],
-): props is AutomergeDeleteOrInsertPath => {
-  const [, secondProp] = props;
-
-  return typeof secondProp === "number";
-};
-
-const isPutOrSplicePatch = (
-  patch: A.Patch,
-): patch is A.SpliceTextPatch | A.PutPatch => {
-  return ["put", "splice"].includes(patch.action);
-};
-
-type GetIndexFromPath = (path: A.Prop[]) => number;
-/**
- * Automerge has length as an optional property in the path tuple, so we need
- * to provide a fallback.
- */
-const getIndexFromPath: GetIndexFromPath = (path) =>
-  isDeleteOrInsertPath(path) ? path[1] : 0;
-
-type GetMonacoSelection = (args: {
-  start: number;
-  end: number;
-  model: monaco.editor.ITextModel;
-}) => monaco.Selection;
-const getMonacoSelection: GetMonacoSelection = ({ start, end, model }) => {
-  const startPosition = model.getPositionAt(start);
-  const endPosition = model.getPositionAt(end);
-
-  return new monaco.Selection(
-    startPosition.lineNumber,
-    startPosition.column,
-    endPosition.lineNumber,
-    endPosition.column,
-  );
-};
-
-type HandlePatch = (args: {
-  model: monaco.editor.ITextModel;
-  patch: A.Patch;
-}) => void;
-export const handlePatch: HandlePatch = ({ model, patch }) => {
-  if (isPutOrSplicePatch(patch)) {
-    const index = getIndexFromPath(patch.path);
-
-    model.applyEdits([
-      {
-        range: getMonacoSelection({
-          start: index,
-          end: index,
-          model,
-        }),
-        text: String(patch.value),
-      },
-    ]);
-  } else if (patch.action === "del") {
-    const { path, length = 1 } = patch;
-    const index = getIndexFromPath(path);
-
-    model.applyEdits([
-      {
-        range: getMonacoSelection({
-          start: index,
-          end: index + length,
-          model,
-        }),
-        text: "",
-      },
-    ]);
-  } else {
-    throw new Error(`Unsupported patch action: ${patch.action}`);
-  }
-};
+const heartbeatEmitRate = 15 * 1000;
+const hearbeatCheckRate = 30 * 1000;
 
 const sortEvents = (
   firstChange: monaco.editor.IModelContentChange,
@@ -90,69 +28,194 @@ const sortEvents = (
 ): number => secondChange.rangeOffset - firstChange.rangeOffset;
 
 export class AutomergeMonacoBinding {
-  #handle: DocHandle<MyDoc>;
+  // values passed in to the constructor
+  #automergeHandle: DocHandle<MonacoDoc>;
+  #monacoEditor: monaco.editor.IStandaloneCodeEditor;
   #monacoModel: monaco.editor.ITextModel;
-  #editor: monaco.editor.IStandaloneCodeEditor;
+  #userId: string;
+
+  // internal state
+  #isAutomergeDocUpdating: boolean;
+  #cursorStates: CursorStates;
+  #monacoEditorDecorationsCollection: monaco.editor.IEditorDecorationsCollection;
+  #peerHeartbeats: Map<string, number>;
+
+  // event listeners and intervals
+  #editorCursorChangeListener: monaco.IDisposable;
   #modelChangeListener: monaco.IDisposable;
-  #editorDisposeListener: monaco.IDisposable;
-  /**
-   * initial value while document is syncing
-   */
-  #isUpdating = true;
+  #modelWillDisposeListener: monaco.IDisposable;
+  #heartbeatInterval: NodeJS.Timeout;
+  #removeDisconnectedPeersInterval: NodeJS.Timeout;
 
   #initialSync() {
-    const doc = this.#handle.docSync();
+    const doc = this.#automergeHandle.docSync();
 
     if (doc) {
+      this.#isAutomergeDocUpdating = true;
       this.#monacoModel.setValue(doc.text);
+      this.#isAutomergeDocUpdating = false;
     }
-
-    this.#isUpdating = false;
   }
 
+  #docChangeHandler = (event: DocHandleChangePayload<MonacoDoc>) => {
+    /**
+     * this allows us to distinguish between changes made by the user in the
+     * editor and changes made by the automerge doc.
+     */
+    const isNotInSync = this.#monacoModel.getValue() !== event.doc.text;
+
+    console.log("a", event);
+
+    if (isNotInSync) {
+      this.#isAutomergeDocUpdating = true;
+
+      event.patches.forEach((patch) =>
+        handlePatch({ model: this.#monacoModel, patch }),
+      );
+
+      this.#isAutomergeDocUpdating = false;
+    }
+
+    // if a patch includes a new line sometimes the cursor will get duplicated
+    // this resets cursors on every change
+    this.#monacoEditorDecorationsCollection.set(
+      getDecorationsFromCursorStates(this.#cursorStates),
+    );
+  };
+
+  #monacoModelChangeHandler = (
+    event: monaco.editor.IModelContentChangedEvent,
+  ) => {
+    if (!this.#isAutomergeDocUpdating) {
+      this.#automergeHandle.change((doc) => {
+        console.log("m", event);
+        event.changes.sort(sortEvents).forEach((change) => {
+          const { rangeOffset, rangeLength, text } = change;
+
+          A.splice(doc, ["text"], rangeOffset, rangeLength, text);
+        });
+      });
+    }
+  };
+
+  #docEphemeralMessageHandler = ({
+    message,
+  }: DocHandleEphemeralMessagePayload<MonacoDoc>) => {
+    if (!isBaseMessage(message) || message.userId === this.#userId) return;
+
+    if (isCursorChangeMessage(message)) {
+      this.#monacoEditorDecorationsCollection.set(
+        handleCursorChange({
+          peerStates: this.#cursorStates,
+          position: message.position,
+          userId: message.userId,
+        }),
+      );
+    }
+
+    if (isHeartbeatMessage(message)) {
+      this.#peerHeartbeats.set(message.userId, message.time);
+    }
+  };
+
+  #monacoCursorChangeHandler = (
+    cursorPositionChangedEvent: monaco.editor.ICursorPositionChangedEvent,
+  ) => {
+    this.#automergeHandle.broadcast({
+      position: cursorPositionChangedEvent.position,
+      userId: this.#userId,
+    });
+  };
+
+  #emitHeartbeat = () => {
+    this.#automergeHandle.broadcast({ userId: this.#userId, time: Date.now() });
+  };
+
+  #checkHeartbeats = () => {
+    const now = Date.now();
+    const initialSize = this.#peerHeartbeats.size;
+
+    this.#peerHeartbeats.forEach((time, userId) => {
+      if (now - time > hearbeatCheckRate) {
+        this.#peerHeartbeats.delete(userId);
+        this.#cursorStates.delete(userId);
+      }
+    });
+
+    if (initialSize !== this.#peerHeartbeats.size) {
+      this.#monacoEditorDecorationsCollection.set(
+        getDecorationsFromCursorStates(this.#cursorStates),
+      );
+    }
+  };
+
   constructor(
-    handle: DocHandle<MyDoc>,
+    handle: DocHandle<MonacoDoc>,
+    userId: string,
     monacoModel: monaco.editor.ITextModel,
     editor: monaco.editor.IStandaloneCodeEditor,
   ) {
-    this.#handle = handle;
+    this.#automergeHandle = handle;
     this.#monacoModel = monacoModel;
-    this.#editor = editor;
+    this.#monacoEditor = editor;
+    this.#userId = userId;
+    this.#isAutomergeDocUpdating = false;
+    this.#cursorStates = new Map<
+      string,
+      { color: Color; decoration: monaco.editor.IModelDeltaDecoration }
+    >();
+    this.#peerHeartbeats = new Map<string, number>();
+
+    // don't let users type while binding is syncing and being set up
+    this.#monacoEditor.updateOptions({ readOnly: true });
 
     this.#initialSync();
 
-    this.#handle.on("change", (e) => {
-      const isNotInSync = this.#monacoModel.getValue() !== e.doc.text;
+    this.#emitHeartbeat();
+    this.#heartbeatInterval = setInterval(
+      this.#emitHeartbeat,
+      heartbeatEmitRate,
+    );
 
-      if (isNotInSync) {
-        this.#isUpdating = true;
-        e.patches.forEach((patch) =>
-          handlePatch({ model: this.#monacoModel, patch }),
-        );
-        this.#isUpdating = false;
-      }
-    });
+    this.#removeDisconnectedPeersInterval = setInterval(
+      this.#checkHeartbeats,
+      hearbeatCheckRate,
+    );
 
-    this.#modelChangeListener = this.#monacoModel.onDidChangeContent((e) => {
-      if (!this.#isUpdating) {
-        this.#handle.change((doc) => {
-          e.changes.sort(sortEvents).forEach((change) => {
-            const { rangeOffset, rangeLength, text } = change;
+    this.#monacoEditorDecorationsCollection =
+      this.#monacoEditor.createDecorationsCollection();
 
-            A.splice(doc, ["text"], rangeOffset, rangeLength, text);
-          });
-        });
-      }
-    });
+    // set up event listeners
+    this.#automergeHandle.on("change", this.#docChangeHandler);
 
-    this.#editorDisposeListener = this.#editor.onDidDispose(() => {
+    this.#automergeHandle.on(
+      "ephemeral-message",
+      this.#docEphemeralMessageHandler,
+    );
+
+    this.#modelChangeListener = this.#monacoModel.onDidChangeContent(
+      this.#monacoModelChangeHandler,
+    );
+
+    this.#editorCursorChangeListener =
+      this.#monacoEditor.onDidChangeCursorPosition(
+        this.#monacoCursorChangeHandler,
+      );
+
+    this.#modelWillDisposeListener = this.#monacoModel.onWillDispose(() => {
       this.destroy();
     });
+
+    this.#monacoEditor.updateOptions({ readOnly: false });
   }
 
   destroy() {
-    this.#handle.off("change");
+    clearInterval(this.#heartbeatInterval);
+    clearInterval(this.#removeDisconnectedPeersInterval);
+    this.#automergeHandle.off("change");
+    this.#automergeHandle.off("ephemeral-message");
     this.#modelChangeListener.dispose();
-    this.#editorDisposeListener.dispose();
+    this.#editorCursorChangeListener.dispose();
+    this.#modelWillDisposeListener.dispose();
   }
 }

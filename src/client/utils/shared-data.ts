@@ -1,5 +1,3 @@
-export const DOC_URL = "foo";
-
-export type MyDoc = {
+export type MonacoDoc = {
   text: string;
 };

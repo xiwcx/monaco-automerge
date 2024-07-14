@@ -47,3 +47,53 @@ test("multiple users entering content", async ({ context }) => {
     'const foo = "bar',
   );
 });
+
+test("multi-cursor appears, moves, and disappears", async ({
+  browser,
+  page: pageOne,
+}) => {
+  test.slow();
+
+  await pageOne.clock.install();
+
+  await pageOne.goto("/");
+  await pageOne.getByText("Create New Doc").click();
+  await pageOne.waitForURL(/doc/);
+
+  const url = pageOne.url();
+
+  await pageOne.getByRole("textbox").pressSequentially("// testing");
+
+  await expect(await pageOne.locator(".peer-cursor")).not.toBeVisible();
+
+  const contextTwo = await browser.newContext();
+  const pageTwo = await contextTwo.newPage();
+  await pageTwo.goto(url);
+
+  await expect(await pageTwo.locator(".view-lines")).toHaveText("// testing");
+
+  await pageTwo.getByRole("textbox").press("ArrowRight");
+
+  // appears
+  await expect(await pageOne.locator(".peer-cursor")).toBeVisible();
+
+  const initialPosition = await pageOne.locator(".peer-cursor").boundingBox();
+
+  await pageTwo.getByRole("textbox").press("ArrowRight");
+
+  // moves
+  await expect
+    .poll(async () => {
+      const finalPosition = await pageOne.locator(".peer-cursor").boundingBox();
+
+      return finalPosition;
+    })
+    .not.toEqual(initialPosition);
+
+  await contextTwo.close();
+
+  await pageOne.clock.runFor(61 * 1000);
+
+  // disappears
+  await expect(await pageOne.locator(".peer-cursor")).not.toBeVisible();
+});
