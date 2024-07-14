@@ -36,11 +36,6 @@ export const AutomergeMonacoBinder = memo(
       options={{
         automaticLayout: true,
         cursorStyle: "block",
-        /**
-         * This prevents the user from interacting with the editor before the
-         * document handle is ready, synced, and bound.
-         */
-        readOnly: true,
       }}
     />
   ),

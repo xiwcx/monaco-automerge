@@ -81,12 +81,16 @@ test("multi-cursor appears, moves, and disappears", async ({
 
   await pageTwo.getByRole("textbox").press("ArrowRight");
 
-  const finalPosition = await pageOne.locator(".peer-cursor").boundingBox();
-
   // moves
-  expect(finalPosition).not.toEqual(initialPosition);
+  await expect
+    .poll(async () => {
+      const finalPosition = await pageOne.locator(".peer-cursor").boundingBox();
 
-  contextTwo.close();
+      return finalPosition;
+    })
+    .not.toEqual(initialPosition);
+
+  await contextTwo.close();
 
   await pageOne.clock.runFor(61 * 1000);
 
