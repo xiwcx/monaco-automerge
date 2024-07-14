@@ -96,8 +96,9 @@ it("constructor functions as expected", async () => {
   );
 
   // editor is taken out of read only mode
-  expect(editor.updateOptions).toHaveBeenCalledTimes(1);
-  expect(editor.updateOptions).toHaveBeenCalledWith({ readOnly: false });
+  expect(editor.updateOptions).toHaveBeenCalledTimes(2);
+  expect(editor.updateOptions).toHaveBeenNthCalledWith(1, { readOnly: true });
+  expect(editor.updateOptions).toHaveBeenNthCalledWith(2, { readOnly: false });
 });
 
 it("destroys functions as expected", async () => {
