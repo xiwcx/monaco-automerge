@@ -54,6 +54,8 @@ test("multi-cursor appears, moves, and disappears", async ({
 }) => {
   test.slow();
 
+  await pageOne.clock.install();
+
   await pageOne.goto("/");
   await pageOne.getByText("Create New Doc").click();
   await pageOne.waitForURL(/doc/);
@@ -86,8 +88,8 @@ test("multi-cursor appears, moves, and disappears", async ({
 
   contextTwo.close();
 
+  await pageOne.clock.runFor(61 * 1000);
+
   // disappears
-  await expect(await pageOne.locator(".peer-cursor")).not.toBeVisible({
-    timeout: 61 * 1000,
-  });
+  await expect(await pageOne.locator(".peer-cursor")).not.toBeVisible();
 });
